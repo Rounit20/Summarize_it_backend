@@ -1,7 +1,7 @@
 {
-  "name": "summarizer-server",
+  "name": "summarizer-backend",
   "version": "1.0.0",
-  "description": "Backend server for AI meeting summarizer",
+  "description": "Backend API for AI meeting summarizer",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -17,11 +17,17 @@
   "devDependencies": {
     "nodemon": "^3.0.1"
   },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
+  },
   "keywords": [
     "express",
     "api",
-    "summarizer"
+    "summarizer",
+    "nodejs",
+    "huggingface"
   ],
-  "author": "Your Name",
+  "author": "Rounit",
   "license": "MIT"
 }
