@@ -16,13 +16,37 @@ if (!fs.existsSync(uploadsDir)) {
   console.log('Created uploads directory');
 }
 
-// Middleware
+// Updated CORS configuration for production
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://localhost:5173', 'http://127.0.0.1:3000', 'http://127.0.0.1:5173','https://summarizer-6abe4.web.app/'],
+  origin: [
+    'http://localhost:3000', 
+    'http://localhost:5173', 
+    'http://127.0.0.1:3000', 
+    'http://127.0.0.1:5173',
+    'https://summarizer-6abe4.web.app',          // Your Firebase frontend (no trailing slash)
+    'https://summarizer-6abe4.firebaseapp.com'   // Alternative Firebase URL
+  ],
   credentials: true
 }));
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Root route for health check
+app.get('/', (req, res) => {
+  res.json({ 
+    message: 'Summarizer Backend API is running!',
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      health: '/api/health',
+      test: '/api/test',
+      summarize: 'POST /api/summarize',
+      upload: 'POST /api/upload',
+      sendEmail: 'POST /api/send-email'
+    }
+  });
+});
 
 // Multer configuration for file uploads
 const storage = multer.diskStorage({
@@ -52,7 +76,7 @@ const upload = multer({
 let transporter = null;
 
 if (process.env.EMAIL_USER && process.env.EMAIL_APP_PASSWORD) {
-  transporter = nodemailer.createTransport({
+  transporter = nodemailer.createTransporter({
     service: 'gmail',
     auth: {
       user: process.env.EMAIL_USER,
@@ -68,6 +92,7 @@ console.log('Environment variables check:');
 console.log('EMAIL_USER:', process.env.EMAIL_USER ? '✓ Found' : '✗ Missing');
 console.log('EMAIL_APP_PASSWORD:', process.env.EMAIL_APP_PASSWORD ? '✓ Found' : '✗ Missing');
 console.log('HUGGING_FACE_TOKEN:', process.env.HUGGING_FACE_TOKEN ? '✓ Found' : '✗ Missing');
+console.log('PORT:', process.env.PORT || '5000');
 
 // Test email configuration on startup (only if credentials are available)
 if (process.env.EMAIL_USER && process.env.EMAIL_APP_PASSWORD) {
@@ -83,12 +108,10 @@ if (process.env.EMAIL_USER && process.env.EMAIL_APP_PASSWORD) {
   console.log('Email credentials missing - email features will be disabled');
 }
 
-// FIXED Hugging Face API integration
+// Hugging Face API integration
 async function summarizeWithHuggingFace(text, customPrompt = '') {
   try {
     console.log('Calling Hugging Face API...');
-    console.log('Token length:', process.env.HUGGING_FACE_TOKEN?.length);
-    console.log('Token starts with hf_:', process.env.HUGGING_FACE_TOKEN?.startsWith('hf_'));
     
     // Truncate text if it's too long (BART model has input limits)
     let processedText = text;
@@ -122,7 +145,7 @@ async function summarizeWithHuggingFace(text, customPrompt = '') {
     }
 
     const result = await response.json();
-    console.log('Hugging Face API response:', result);
+    console.log('Hugging Face API response received');
     
     let summary = result[0]?.summary_text || result[0]?.generated_text || '';
 
@@ -157,7 +180,8 @@ app.get('/api/health', (req, res) => {
     status: 'OK', 
     message: 'Server is running',
     timestamp: new Date().toISOString(),
-    port: PORT
+    port: PORT,
+    environment: process.env.NODE_ENV || 'development'
   });
 });
 
@@ -169,8 +193,10 @@ app.get('/api/test', (req, res) => {
       hasHuggingFaceToken: !!process.env.HUGGING_FACE_TOKEN,
       hasEmailUser: !!process.env.EMAIL_USER,
       hasEmailPassword: !!process.env.EMAIL_APP_PASSWORD,
-      port: PORT
-    }
+      port: PORT,
+      nodeEnv: process.env.NODE_ENV || 'development'
+    },
+    timestamp: new Date().toISOString()
   });
 });
 
@@ -334,15 +360,6 @@ app.post('/api/send-email', async (req, res) => {
   }
 });
 
-// Serve static files in production
-if (process.env.NODE_ENV === 'production') {
-  app.use(express.static(path.join(__dirname, '../dist')));
-  
-  app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../dist', 'index.html'));
-  });
-}
-
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error('Error middleware:', err.stack);
@@ -357,15 +374,23 @@ app.use((err, req, res, next) => {
 app.use('*', (req, res) => {
   res.status(404).json({ 
     success: false,
-    error: 'Route not found' 
+    error: 'Route not found',
+    path: req.originalUrl
   });
 });
 
-app.listen(PORT, () => {
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully');
+  process.exit(0);
+});
+
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Server URL: http://localhost:${PORT}`);
   console.log('Available routes:');
+  console.log('  GET  /');
   console.log('  GET  /api/health');
   console.log('  GET  /api/test');
   console.log('  POST /api/summarize');
