@@ -1,0 +1,27 @@
+{
+  "name": "summarizer-server",
+  "version": "1.0.0",
+  "description": "Backend server for AI meeting summarizer",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2",
+    "multer": "^1.4.5-lts.1",
+    "nodemailer": "^6.10.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "keywords": [
+    "express",
+    "api",
+    "summarizer"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}
